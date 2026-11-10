@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Job Photos">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1f5fa8">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>Job Photo Shrinker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one narrow column, phone-first. One path: choose -> send each email. Extras live under More options. */
+html{-webkit-text-size-adjust:100%}
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --fg:#17202a; --muted:#5b6774; --line:#d9dfe5;
+  --accent:#1f5fa8; --accent-fg:#ffffff; --tag:#e6eef8; --ok:#1d7a4c; --ok-bg:#e5f4ec; --warn:#a6560f;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161c; --surface:#1a222b; --fg:#e7ecf1; --muted:#9aa7b4; --line:#2c3743;
+  --accent:#6aa7ee; --accent-fg:#0b1520; --tag:#1f2e40; --ok:#5cc48f; --ok-bg:#16301f; --warn:#e9a35b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161c; --surface:#1a222b; --fg:#e7ecf1; --muted:#9aa7b4; --line:#2c3743;
+  --accent:#6aa7ee; --accent-fg:#0b1520; --tag:#1f2e40; --ok:#5cc48f; --ok-bg:#16301f; --warn:#e9a35b; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:17px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:calc(env(safe-area-inset-top,0px) + 24px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 48px)}
+main{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1{font-size:1.7rem;line-height:1.2;margin:0;text-wrap:balance;font-weight:700}
+.lede{margin:6px 0 0;color:var(--muted)}
+h2{font-size:1.15rem;margin:0 0 10px;font-weight:700;text-wrap:balance}
+section{display:flex;flex-direction:column}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.pick{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:72px;border-radius:14px;
+  background:var(--accent);color:var(--accent-fg);font:700 1.25rem var(--sans);border:0;cursor:pointer}
+.pick.again{min-height:52px;font-size:1rem;background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.pick:focus-visible,.btn:focus-visible,.opt:has(input:focus-visible),.thumb:focus-visible,.check:has(input:focus-visible),summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#file{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.hint{margin:8px 0 0;color:var(--muted);font-size:.95rem;text-align:center}
+.opts{display:grid;gap:8px}
+.opt{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);
+  border-radius:10px;background:var(--surface);cursor:pointer}
+.opt:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.opt input,.check input{accent-color:var(--accent);width:20px;height:20px;margin:0;flex:none}
+.opt b{display:block;font-weight:600}
+.opt small{color:var(--muted);font-size:.85rem}
+.px{font-family:var(--mono);font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.check{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
+.status{display:flex;flex-direction:column;gap:8px}
+.bar{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.bundles{display:flex;flex-direction:column;gap:14px}
+.bundle{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.bundle.done{border-color:var(--ok)}
+.bhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px}
+.bhead h3{margin:0;font-size:1.15rem}
+.meter{font-family:var(--mono);font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
+.tcell{display:flex;flex-direction:column;gap:3px;min-width:0}
+.thumb{position:relative;aspect-ratio:1;max-width:100%;border-radius:6px;overflow:hidden;border:0;padding:0;background:var(--line);cursor:pointer}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .badge{position:absolute;left:3px;bottom:3px;background:var(--accent);color:var(--accent-fg);font:600 .6rem var(--sans);
+  letter-spacing:.04em;text-transform:uppercase;padding:1px 6px;border-radius:99px}
+.tcap{font-size:.72rem;line-height:1.25;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:0 18px;border-radius:12px;width:100%;
+  font:700 1.1rem var(--sans);cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg)}
+.btn.ghost{background:transparent;color:var(--accent);font-weight:600;font-size:1rem;min-height:48px}
+.btn:disabled{opacity:.5;cursor:default}
+.bundle.done .btn{background:transparent;color:var(--accent)}
+.sent{display:flex;align-items:center;gap:8px;background:var(--ok-bg);color:var(--ok);border-radius:8px;padding:8px 12px;font-weight:600;font-size:.95rem;margin:0}
+.note{font-size:.92rem;color:var(--muted);margin:0}
+.msg{font-size:.95rem;margin:0}
+.msg.ok{color:var(--ok)} .msg.warn{color:var(--warn)}
+.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:8px;color:var(--fg)}
+.steps li::marker{color:var(--accent);font-weight:700}
+.gmail{background:var(--tag);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.gmail b{font-weight:700}
+details.more{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+details.more summary{cursor:pointer;padding:14px 16px;font-weight:600;color:var(--accent);list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::after{content:"+";font:600 1.3rem var(--mono)}
+details.more[open] summary::after{content:"–"}
+.moreBody{display:flex;flex-direction:column;gap:14px;padding:0 16px 16px}
+.moreBody h3{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 -6px;font-weight:600}
+
+.viewer{position:fixed;inset:0;z-index:20;background:#0d1116;color:#e7ecf1;display:flex;flex-direction:column;gap:8px;
+  padding:calc(env(safe-area-inset-top,0px) + 8px) max(10px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 10px) max(10px,env(safe-area-inset-left,0px))}
+.vbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.vbar span{font-family:var(--mono);font-size:.75rem;color:#aab5c0;min-width:0;overflow-wrap:anywhere}
+.vbtns{display:flex;gap:6px;flex-wrap:wrap}
+.vbtn{min-height:44px;padding:0 14px;border-radius:9px;font:600 .95rem var(--sans);cursor:pointer;border:1px solid #3a4652;background:#1c242d;color:#e7ecf1}
+.vbtn.primary{background:#fff;color:#111;border-color:#fff}
+.vbtn:disabled{opacity:.4}
+.vbtn:focus-visible{outline:3px solid #6aa7ee;outline-offset:2px}
+.vscroll{flex:1 1 40%;min-height:120px;overflow:auto;-webkit-overflow-scrolling:touch;border-radius:6px;background:#000;display:flex}
+.vscroll img{max-width:none;display:block}
+.vscroll.fit img{max-width:100%;max-height:100%;object-fit:contain;margin:auto}
+.vform{display:flex;flex-direction:column;gap:8px;flex:none}
+.vform label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#aab5c0;font-weight:600}
+.vform input,.vform textarea{width:100%;font:16px/1.4 var(--sans);color:#e7ecf1;background:#1c242d;border:1px solid #3a4652;border-radius:9px;padding:10px 12px}
+.vform textarea{min-height:64px;resize:vertical}
+.vform input:focus,.vform textarea:focus{outline:2px solid #6aa7ee;outline-offset:0;border-color:#6aa7ee}
+.vfoot{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.vfoot small{color:#aab5c0;font-size:.78rem}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head><body>
+
+
+<main>
+  <header>
+    <h1>Job Photo Shrinker</h1>
+    <p class="lede">Send a whole job's photos by Gmail, straight from your iPhone.</p>
+  </header>
+
+  <section id="pickSec">
+    <label class="pick" for="file" id="pickLabel">Choose photos</label>
+    <input type="file" id="file" accept="image/*" multiple>
+    <p class="hint" id="pickHint">Select every photo from the job, then tap Add.</p>
+  </section>
+
+  <section id="statusSec" hidden>
+    <div class="status panel">
+      <p class="msg" id="statusText">Getting photos ready…</p>
+      <div class="bar"><i id="barFill"></i></div>
+    </div>
+  </section>
+
+  <section id="bundleSec" hidden>
+    <h2 id="bundleHead">Ready to send</h2>
+    <div class="bundles">
+      <div class="gmail">
+        <span>Tap <b>Send</b> on each email below. A menu opens: tap <b>Gmail</b>, type who it's to, then tap the send arrow.</span>
+        <span class="note">Gmail not in the menu? Swipe the row of apps left and tap <b>More</b>.</span>
+      </div>
+      <div class="bundles" id="bundles"></div>
+      <p class="msg" id="saveMsg" aria-live="polite"></p>
+      <p class="note">Want a note on a photo? Tap the photo, type a title or comment, then tap Done. It prints under the photo.</p>
+    </div>
+  </section>
+
+  <section id="howSec">
+    <div class="panel" style="display:flex;flex-direction:column;gap:12px">
+      <h2 style="margin:0">How it works</h2>
+      <ol class="steps">
+        <li>Tap <b>Choose photos</b> and select all the photos from the job.</li>
+        <li>Wait a moment while the photos get smaller.</li>
+        <li>Tap <b>Send</b>, then tap <b>Gmail</b>. Do this for each email.</li>
+      </ol>
+      <p class="note">Photos are grouped so each email stays under Gmail's size limit. They arrive as one PDF per email, one photo per page.</p>
+    </div>
+  </section>
+
+  <details class="more" id="more">
+    <summary>More options</summary>
+    <div class="moreBody">
+      <h3>Photo detail</h3>
+      <div class="opts" id="opts">
+        <label class="opt"><input type="radio" name="q" id="q-max" value="max"><span><b>Max detail</b><small>Tiny print, faded labels. More emails.</small></span><span class="px">3200 px</span></label>
+        <label class="opt"><input type="radio" name="q" id="q-sharp" value="sharp" checked><span><b>Sharp</b><small>Serial numbers stay readable. Recommended.</small></span><span class="px">2560 px</span></label>
+        <label class="opt"><input type="radio" name="q" id="q-small" value="small"><span><b>Compact</b><small>Overview shots. Fewest emails.</small></span><span class="px">1920 px</span></label>
+      </div>
+      <h3>Notes</h3>
+      <label class="check"><input type="checkbox" id="stamp" checked><span>Print titles and comments under the photos</span></label>
+      <h3>Other formats</h3>
+      <button class="btn ghost" type="button" id="zipAll" disabled>Download all photos as a .zip (for Google Drive)</button>
+      <p class="note">Your photos stay on your phone until you send them. Location data is removed from the copies.</p>
+    </div>
+  </details>
+</main>
+
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Photo details">
+  <div class="vbar">
+    <span id="vName"></span>
+    <div class="vbtns">
+      <button class="vbtn" id="vPrev" type="button" aria-label="Previous photo">‹ Prev</button>
+      <button class="vbtn" id="vNext" type="button" aria-label="Next photo">Next ›</button>
+      <button class="vbtn" id="vZoom" type="button">Zoom in</button>
+    </div>
+  </div>
+  <div class="vscroll fit" id="vScroll"><img id="vImg" alt=""></div>
+  <div class="vform">
+    <label for="vTitle">Title</label>
+    <input id="vTitle" type="text" maxlength="100" placeholder="e.g. Unit 3 compressor nameplate" autocomplete="off" enterkeyhint="next">
+    <label for="vComment">Comment</label>
+    <textarea id="vComment" maxlength="500" placeholder="e.g. Serial 4471-A, corrosion on left mount"></textarea>
+    <div class="vfoot">
+      <small id="vNote">Printed on a white strip under the photo.</small>
+      <button class="vbtn primary" id="vClose" type="button">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const LEVELS = { max:{edge:3200,q:0.86}, sharp:{edge:2560,q:0.84}, small:{edge:1920,q:0.8} };
+  const BUNDLE_LIMIT = 20e6; // bytes; leaves headroom under Gmail's 25 MB
+  const CAP_FONT = '-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif';
+  const $ = id => document.getElementById(id);
+  let files = [], captions = [], results = [], bundles = [], running = 0;
+  let viewing = null, dirty = new Set(), lastFailed = 0, busy = false, sentKeys = new Set();
+
+
+  try { const saved = localStorage.getItem("jps-level"); if (saved && LEVELS[saved]) $("q-" + saved).checked = true; } catch(e){}
+  try { if (localStorage.getItem("jps-stamp") === "0") $("stamp").checked = false; } catch(e){}
+
+  const level = () => (document.querySelector('input[name="q"]:checked') || {}).value || "sharp";
+  const stampOn = () => $("stamp").checked;
+  const mb = b => (b/1e6).toFixed(b >= 1e7 ? 0 : 1) + " MB";
+  const capOf = r => captions[r.idx] || { title: "", comment: "" };
+  const hasCap = c => !!(c && (c.title.trim() || c.comment.trim()));
+  const bundleKey = b => b.items.map(r => r.idx).join(",");
+
+  function showError(text){
+    $("statusSec").hidden = false;
+    $("statusText").className = "msg warn"; $("statusText").textContent = text;
+  }
+  window.addEventListener("error", e => (!e.message || /ResizeObserver|Script error/i.test(e.message) || !running) ? null : showError("Something went wrong: " + (e.message || "unknown error") + ". Try fewer photos at a time."));
+  window.addEventListener("unhandledrejection", e => !running ? null : showError("Something went wrong: " + ((e.reason && e.reason.message) || "unknown error") + ". Try fewer photos at a time."));
+  $("file").addEventListener("click", e => { e.target.value = ""; });
+  $("file").addEventListener("change", e => {
+    const picked = Array.from(e.target.files || []);
+    if (!picked.length) { showError("No photos came through. If you opened this link from inside Gmail, open it in Safari instead and try again."); return; }
+    files = picked; captions = picked.map(() => ({ title: "", comment: "" })); sentKeys.clear();
+    $("howSec").hidden = true;
+    $("statusText").className = "msg"; $("statusText").textContent = "Got " + picked.length + " photo" + (picked.length > 1 ? "s" : "") + ". Starting…";
+    setTimeout(() => process().catch(err => showError("Couldn't finish: " + (err && err.message || err) + ". Try fewer photos at a time.")), 30);
+  });
+  $("opts").addEventListener("change", () => {
+    try { localStorage.setItem("jps-level", level()); } catch(e){}
+    if (files.length) { sentKeys.clear(); process(); }
+  });
+  $("stamp").addEventListener("change", async () => {
+    try { localStorage.setItem("jps-stamp", stampOn() ? "1" : "0"); } catch(e){}
+    const todo = results.filter(r => hasCap(capOf(r)));
+    if (todo.length) await rebuild(todo);
+  });
+
+  // Reused canvases: iOS Safari leaks memory if you create one per photo.
+  const cA = document.createElement("canvas"), cB = document.createElement("canvas"), cT = document.createElement("canvas");
+  function freeCanvases(){ cA.width = cA.height = cB.width = cB.height = 1; }
+  function setOut(r, res){
+    if (r.url) URL.revokeObjectURL(r.url);
+    if (r.thumbUrl) URL.revokeObjectURL(r.thumbUrl);
+    Object.assign(r, { blob: res.blob, w: res.w, h: res.h, url: URL.createObjectURL(res.blob), thumbUrl: URL.createObjectURL(res.thumb) });
+  }
+
+  function loadImage(file){
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => res({img, url});
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("unreadable")); };
+      img.src = url;
+    });
+  }
+  function toBlob(canvas, q){ return new Promise(r => canvas.toBlob(r, "image/jpeg", q)); }
+
+  function wrap(ctx, text, maxW){
+    const lines = []; let cur = "";
+    for (let w of text.trim().split(/\s+/).filter(Boolean)) {
+      while (ctx.measureText(w).width > maxW) {
+        let k = w.length; while (k > 1 && ctx.measureText(w.slice(0, k)).width > maxW) k--;
+        if (cur) { lines.push(cur); cur = ""; }
+        lines.push(w.slice(0, k)); w = w.slice(k);
+      }
+      if (!w) continue;
+      const t = cur ? cur + " " + w : w;
+      if (cur && ctx.measureText(t).width > maxW) { lines.push(cur); cur = w; } else cur = t;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  function layoutCaption(ctx, w, cap){
+    if (!hasCap(cap)) return null;
+    const fs = Math.max(16, Math.round(w / 46)), tfs = Math.round(fs * 1.25), pad = Math.round(fs * 0.9), maxW = w - pad * 2;
+    const rows = [];
+    if (cap.title.trim()) {
+      ctx.font = "700 " + tfs + "px " + CAP_FONT;
+      for (const l of wrap(ctx, cap.title, maxW)) rows.push({ t: l, font: ctx.font, lh: Math.round(tfs * 1.3) });
+    }
+    if (cap.comment.trim()) {
+      ctx.font = "400 " + fs + "px " + CAP_FONT;
+      for (const para of cap.comment.split(/\n/)) for (const l of wrap(ctx, para, maxW)) rows.push({ t: l, font: ctx.font, lh: Math.round(fs * 1.4) });
+    }
+    const height = pad * 2 + rows.reduce((a, r) => a + r.lh, 0);
+    return { height, draw(c, y0){
+      c.fillStyle = "#ffffff"; c.fillRect(0, y0, w, height);
+      c.fillStyle = "#c9ced4"; c.fillRect(0, y0, w, Math.max(1, Math.round(fs / 10)));
+      c.fillStyle = "#111418"; c.textBaseline = "alphabetic";
+      let y = y0 + pad;
+      for (const r of rows) { c.font = r.font; y += r.lh; c.fillText(r.t, pad, y - Math.round(r.lh * 0.27)); }
+    }};
+  }
+
+  async function shrink(file, cfg, cap){
+    const {img, url} = await loadImage(file);
+    try {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const scale = Math.min(1, cfg.edge / Math.max(w, h));
+      const tw = Math.round(w * scale), th = Math.round(h * scale);
+      let src = img, sw = w, sh = h, flip = false;
+      while (sw / tw > 2) {
+        const nw = Math.round(sw / 2), nh = Math.round(sh / 2);
+        const c = flip ? cA : cB; c.width = nw; c.height = nh;
+        const x = c.getContext("2d"); x.imageSmoothingQuality = "high";
+        x.drawImage(src, 0, 0, sw, sh, 0, 0, nw, nh);
+        src = c; sw = nw; sh = nh; flip = !flip;
+      }
+      const out = src === cA ? cB : cA;
+      const ctx = out.getContext("2d");
+      const band = layoutCaption(ctx, tw, cap);
+      out.width = tw; out.height = th + (band ? band.height : 0);
+      ctx.imageSmoothingQuality = "high";
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, out.width, out.height);
+      ctx.drawImage(src, 0, 0, sw, sh, 0, 0, tw, th);
+      if (band) band.draw(ctx, th);
+      let blob = await toBlob(out, cfg.q);
+      let q = cfg.q;
+      while (blob && blob.size > 6e6 && q > 0.6) { q -= 0.08; blob = await toBlob(out, q); }
+      if (!blob) throw new Error("encode");
+      const ts = Math.min(1, 240 / Math.max(out.width, out.height));
+      cT.width = Math.max(1, Math.round(out.width * ts)); cT.height = Math.max(1, Math.round(out.height * ts));
+      const tctx = cT.getContext("2d"); tctx.imageSmoothingQuality = "high";
+      tctx.drawImage(out, 0, 0, cT.width, cT.height);
+      const thumb = (await toBlob(cT, 0.7)) || blob;
+      return { blob, thumb, w: out.width, h: out.height };
+    } finally { URL.revokeObjectURL(url); img.src = ""; }
+  }
+
+  function outName(name, used){
+    let base = (name || "photo").replace(/\.(jpe?g|png|heic|heif|webp|gif)$/i, "").replace(/[^\w\- ]+/g, "_").replace(/\s+/g, " ").trim().slice(0, 80) || "photo";
+    let n = base + ".jpg", i = 2;
+    while (used.has(n.toLowerCase())) n = base + "-" + (i++) + ".jpg";
+    used.add(n.toLowerCase());
+    return n;
+  }
+  const nameFor = (r, used) => outName(capOf(r).title.trim() || r.origName, used);
+
+  async function process(){
+    const run = ++running;
+    results.forEach(r => { if (r.url) URL.revokeObjectURL(r.url); if (r.thumbUrl) URL.revokeObjectURL(r.thumbUrl); });
+    results = []; bundles = []; dirty.clear();
+    const cfg = LEVELS[level()];
+    $("statusSec").hidden = false; $("howSec").hidden = true; $("bundleSec").hidden = true;
+    $("saveMsg").textContent = "";
+    let failed = 0;
+    for (let i = 0; i < files.length; i++) {
+      if (run !== running) return;
+      $("statusText").className = "msg";
+      $("statusText").textContent = "Getting photo " + (i + 1) + " of " + files.length + " ready…";
+      $("barFill").style.width = (i / files.length * 100) + "%";
+      try {
+        const r = await shrink(files[i], cfg, stampOn() ? captions[i] : null);
+        if (run !== running) return;
+        const item = { idx: i, origName: files[i].name, orig: files[i].size };
+        setOut(item, r); results.push(item);
+      } catch (e) { failed++; }
+    }
+    freeCanvases();
+    $("barFill").style.width = "100%";
+    lastFailed = failed;
+    makeBundles();
+    render();
+  }
+
+  async function rebuild(list){
+    busy = true;
+    const cfg = LEVELS[level()], run = running;
+    const m = $("saveMsg"); m.className = "msg"; m.textContent = list.length > 1 ? "Updating " + list.length + " photos…" : "Updating photo…";
+    for (const r of list) {
+      try {
+        const res = await shrink(files[r.idx], cfg, stampOn() ? capOf(r) : null);
+        if (run !== running) { busy = false; return; }
+        setOut(r, res);
+      } catch (e) {}
+      dirty.delete(r.idx);
+    }
+    freeCanvases();
+    busy = false;
+    m.textContent = "";
+    makeBundles(); render();
+  }
+
+  function makeBundles(){
+    bundles = []; let cur = null;
+    for (const r of results) {
+      if (!cur || cur.size + r.blob.size + 600 > BUNDLE_LIMIT) { cur = { items: [], size: 0 }; bundles.push(cur); }
+      cur.items.push(r); cur.size += r.blob.size + 600;
+    }
+  }
+
+  function render(){
+    const before = results.reduce((a, r) => a + r.orig, 0), after = results.reduce((a, r) => a + r.blob.size, 0);
+    const st = $("statusText");
+    if (lastFailed) { st.className = "msg warn"; st.textContent = lastFailed + " photo" + (lastFailed > 1 ? "s" : "") + " couldn't be opened and " + (lastFailed > 1 ? "were" : "was") + " left out. The rest are ready below."; }
+    else { st.className = "msg ok"; st.textContent = results.length + " photos ready. Shrunk from " + mb(before) + " to " + mb(after) + "."; }
+
+    $("pickLabel").textContent = "Start over with different photos";
+    $("pickLabel").classList.add("again");
+    $("pickHint").hidden = true;
+
+    const n = bundles.length;
+    $("bundleHead").textContent = n === 1 ? "Ready to send: 1 email" : "Ready to send: " + n + " emails";
+    const wrapEl = $("bundles"); wrapEl.replaceChildren();
+    bundles.forEach((b, bi) => {
+      const done = sentKeys.has(bundleKey(b));
+      const el = document.createElement("div"); el.className = "bundle" + (done ? " done" : "");
+      const head = document.createElement("div"); head.className = "bhead";
+      const h3 = document.createElement("h3"); h3.textContent = n === 1 ? "Your email" : "Email " + (bi + 1) + " of " + n;
+      const m = document.createElement("span"); m.className = "meter"; m.textContent = b.items.length + " photo" + (b.items.length > 1 ? "s" : "") + " · " + mb(b.size);
+      head.append(h3, m);
+      const grid = document.createElement("div"); grid.className = "thumbs";
+      b.items.forEach(r => {
+        const cell = document.createElement("div"); cell.className = "tcell";
+        const t = document.createElement("button"); t.type = "button"; t.className = "thumb";
+        const c = capOf(r);
+        t.setAttribute("aria-label", (c.title.trim() || r.origName) + ". Open to add a note");
+        const im = document.createElement("img"); im.src = r.thumbUrl; im.alt = ""; im.loading = "lazy";
+        t.append(im);
+        if (hasCap(c)) { const bd = document.createElement("span"); bd.className = "badge"; bd.textContent = "Note"; t.append(bd); }
+        t.addEventListener("click", () => openViewer(r));
+        cell.append(t);
+        if (c.title.trim()) { const cap = document.createElement("span"); cap.className = "tcap"; cap.textContent = c.title.trim(); cell.append(cap); }
+        grid.append(cell);
+      });
+      el.append(head, grid);
+      if (done) {
+        const s = document.createElement("p"); s.className = "sent";
+        s.textContent = "✓ Share menu opened" + (n > 1 && bi < n - 1 ? ". Next: email " + (bi + 2) + "." : ".");
+        el.append(s);
+      }
+      const btn = document.createElement("button"); btn.type = "button"; btn.className = "btn";
+      btn.textContent = done ? "Send email " + (n > 1 ? (bi + 1) + " " : "") + "again" : (n === 1 ? "Send" : "Send email " + (bi + 1));
+      btn.addEventListener("click", () => sendBundle(b, bi, btn));
+      el.append(btn);
+      wrapEl.append(el);
+    });
+    $("zipAll").disabled = !results.length;
+    $("bundleSec").hidden = !bundles.length;
+  }
+
+  const canShareFiles = (() => { try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [new File(["x"], "t.pdf", { type: "application/pdf" })] })); } catch (e) { return false; } })();
+
+  function download(filename, blob){
+    const url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  // Must run straight from the tap: Safari only opens the share menu during a user gesture.
+  async function save(filename, blob, type){
+    const m = $("saveMsg"); m.className = "msg"; m.textContent = "";
+    if (canShareFiles) {
+      try {
+        await navigator.share({ files: [new File([blob], filename, { type })] });
+        return true;
+      } catch (e) {
+        if (e && e.name === "AbortError") { m.className = "msg warn"; m.textContent = "Cancelled. Tap Send again when you're ready."; return false; }
+        m.className = "msg warn"; m.textContent = "The share menu didn't open. Tap Send again.";
+        return false;
+      }
+    }
+    download(filename, blob);
+    m.className = "msg ok"; m.textContent = "Saved " + filename + ". Attach it to an email from your Downloads.";
+    return true;
+  }
+
+  const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+
+  async function sendBundle(b, bi, btn){
+    btn.disabled = true; const label = btn.textContent; btn.textContent = "Opening…";
+    try {
+      const pdf = makePdf(b.items);
+      const n = bundles.length;
+      const name = "Job photos " + today() + (n > 1 ? " (" + (bi + 1) + " of " + n + ")" : "") + ".pdf";
+      const ok = await save(name, pdf, "application/pdf");
+      if (ok) { sentKeys.add(bundleKey(b)); render(); return; }
+    } finally { btn.disabled = false; if (btn.isConnected) btn.textContent = label; }
+  }
+
+  // PDF writer: one page per photo, the JPEG embedded as-is (no re-encoding).
+  function makePdf(items){
+    const enc = new TextEncoder(), parts = [], off = [];
+    let pos = 0;
+    const add = x => { if (typeof x === "string") { const u = enc.encode(x); parts.push(u); pos += u.length; } else if (x instanceof Blob) { parts.push(x); pos += x.size; } else { parts.push(x); pos += x.length; } };
+    const obj = (num, body) => { off[num] = pos; add(num + " 0 obj\n" + body + "\nendobj\n"); };
+    const f = v => (Math.round(v * 100) / 100).toString();
+    add("%PDF-1.4\n"); add(new Uint8Array([0x25, 0xE2, 0xE3, 0xCF, 0xD3, 0x0A]));
+    const kids = items.map((_, i) => (3 + i * 3) + " 0 R").join(" ");
+    obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+    obj(2, "<< /Type /Pages /Kids [" + kids + "] /Count " + items.length + " >>");
+    items.forEach((r, i) => {
+      const p = 3 + i * 3, c = p + 1, im = p + 2;
+      const s = 842 / Math.max(r.w, r.h), pw = f(r.w * s), ph = f(r.h * s);
+      obj(p, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + pw + " " + ph + "] /Resources << /XObject << /Im0 " + im + " 0 R >> >> /Contents " + c + " 0 R >>");
+      const stream = "q " + pw + " 0 0 " + ph + " 0 0 cm /Im0 Do Q";
+      obj(c, "<< /Length " + stream.length + " >>\nstream\n" + stream + "\nendstream");
+      off[im] = pos;
+      add(im + " 0 obj\n<< /Type /XObject /Subtype /Image /Width " + r.w + " /Height " + r.h + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + r.blob.size + " >>\nstream\n");
+      add(r.blob);
+      add("\nendstream\nendobj\n");
+    });
+    const total = 3 + items.length * 3, xref = pos;
+    let x = "xref\n0 " + total + "\n0000000000 65535 f \n";
+    for (let i = 1; i < total; i++) x += String(off[i]).padStart(10, "0") + " 00000 n \n";
+    add(x + "trailer\n<< /Size " + total + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF\n");
+    return new Blob(parts, { type: "application/pdf" });
+  }
+
+  $("zipAll").addEventListener("click", async () => {
+    const btn = $("zipAll"); btn.disabled = true;
+    try {
+      const used = new Set(), entries = [], lines = [];
+      for (const r of results) {
+        const name = nameFor(r, used), c = capOf(r);
+        entries.push({ name, blob: r.blob });
+        if (hasCap(c)) lines.push(name + (c.title.trim() ? "\nTitle: " + c.title.trim() : "") + (c.comment.trim() ? "\nComment: " + c.comment.trim() : ""));
+      }
+      if (lines.length) entries.push({ name: "captions.txt", blob: new Blob([lines.join("\n\n") + "\n"], { type: "text/plain" }) });
+      const zip = await makeZip(entries);
+      download("job-photos-" + today() + ".zip", zip);
+      $("saveMsg").className = "msg ok"; $("saveMsg").textContent = "Saved the .zip to your Downloads.";
+    } finally { btn.disabled = false; }
+  });
+
+  // Minimal zip writer (no compression: JPEGs don't shrink further).
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(u8){ let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  async function makeZip(entries){
+    const enc = new TextEncoder(), parts = [], central = [];
+    const d = new Date();
+    const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    let offset = 0;
+    for (const e of entries) {
+      const data = new Uint8Array(await e.blob.arrayBuffer());
+      const name = enc.encode(e.name), crc = crc32(data), size = data.length;
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+      lh.setUint16(10, time, true); lh.setUint16(12, date, true); lh.setUint32(14, crc, true);
+      lh.setUint32(18, size, true); lh.setUint32(22, size, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+      parts.push(lh.buffer, name, data);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+      ch.setUint16(10, 0, true); ch.setUint16(12, time, true); ch.setUint16(14, date, true); ch.setUint32(16, crc, true);
+      ch.setUint32(20, size, true); ch.setUint32(24, size, true); ch.setUint16(28, name.length, true);
+      ch.setUint32(42, offset, true);
+      central.push(ch.buffer, name);
+      offset += 30 + name.length + size;
+    }
+    const cdSize = central.reduce((a, p) => a + p.byteLength, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true);
+    end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+    return new Blob([...parts, ...central, end.buffer], { type: "application/zip" });
+  }
+
+  // Photo details: preview, title, comment
+  function showInViewer(r){
+    viewing = r;
+    const c = capOf(r);
+    $("vImg").src = r.url;
+    $("vName").textContent = r.origName + " · " + mb(r.blob.size);
+    $("vTitle").value = c.title; $("vComment").value = c.comment;
+    const pos = results.indexOf(r);
+    $("vPrev").disabled = pos <= 0; $("vNext").disabled = pos >= results.length - 1;
+    $("vNote").textContent = stampOn() ? "Printed on a white strip under the photo." : "Printing notes is off (see More options).";
+  }
+  function openViewer(r){
+    if (busy) return;
+    $("vScroll").classList.add("fit"); $("vZoom").textContent = "Zoom in";
+    showInViewer(r);
+    $("viewer").hidden = false;
+  }
+  function onEdit(){
+    if (!viewing) return;
+    captions[viewing.idx] = { title: $("vTitle").value, comment: $("vComment").value };
+    dirty.add(viewing.idx);
+  }
+  $("vTitle").addEventListener("input", onEdit);
+  $("vComment").addEventListener("input", onEdit);
+  $("vTitle").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("vComment").focus(); } });
+  function step(d){
+    const pos = results.indexOf(viewing) + d;
+    if (pos >= 0 && pos < results.length) showInViewer(results[pos]);
+  }
+  $("vPrev").addEventListener("click", () => step(-1));
+  $("vNext").addEventListener("click", () => step(1));
+  async function closeViewer(){
+    $("viewer").hidden = true; viewing = null;
+    const todo = results.filter(r => dirty.has(r.idx));
+    if (todo.length) await rebuild(todo); else render();
+  }
+  $("vClose").addEventListener("click", closeViewer);
+  $("vZoom").addEventListener("click", () => {
+    const fit = $("vScroll").classList.toggle("fit");
+    $("vZoom").textContent = fit ? "Zoom in" : "Fit to screen";
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("viewer").hidden) closeViewer(); });
+})();
+</script>
+
+</body></html>
