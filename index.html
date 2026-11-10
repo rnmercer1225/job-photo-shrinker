@@ -109,6 +109,15 @@ details.more[open] summary::after{content:"–"}
 .vform input:focus,.vform textarea:focus{outline:2px solid #6aa7ee;outline-offset:0;border-color:#6aa7ee}
 .vfoot{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
 .vfoot small{color:#aab5c0;font-size:.78rem}
+.vlab{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mic{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:99px;border:1px solid #3a4652;background:#1c242d;color:#e7ecf1;font:600 .9rem var(--sans);cursor:pointer}
+.mic.on{background:#c62f2f;border-color:#c62f2f;color:#fff}
+.mic.on svg{animation:micPulse 1s ease-in-out infinite}
+.mic:focus-visible{outline:3px solid #6aa7ee;outline-offset:2px}
+.vmsg{margin:0;font-size:.85rem;color:#e9a35b;width:100%}
+.vmsg:empty{display:none}
+@keyframes micPulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.mic.on svg{animation:none}}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 </style>
 </head><body>
@@ -142,7 +151,7 @@ details.more[open] summary::after{content:"–"}
       </div>
       <div class="bundles" id="bundles"></div>
       <p class="msg" id="saveMsg" aria-live="polite"></p>
-      <p class="note">Want a note on a photo? Tap the photo, type a title or comment, then tap Done. It prints under the photo.</p>
+      <p class="note">Want a note on a photo? Tap the photo, type or tap Speak to say a title or comment, then tap Done. It prints under the photo.</p>
     </div>
   </section>
 
@@ -151,7 +160,7 @@ details.more[open] summary::after{content:"–"}
       <h2 style="margin:0">How it works</h2>
       <ol class="steps">
         <li>Tap <b>Choose photos</b> and select all the photos from the job.</li>
-        <li>Wait a moment while the photos get smaller.</li>
+        <li>Wait a moment while the photos get smaller. To add a note, tap a photo and type or tap <b>Speak</b>.</li>
         <li>Tap <b>Send</b>, then tap <b>Gmail</b>. Do this for each email.</li>
       </ol>
       <p class="note">Photos are grouped so each email stays under Gmail's size limit. They arrive as one PDF per email, one photo per page.</p>
@@ -187,12 +196,13 @@ details.more[open] summary::after{content:"–"}
   </div>
   <div class="vscroll fit" id="vScroll"><img id="vImg" alt=""></div>
   <div class="vform">
-    <label for="vTitle">Title</label>
+    <div class="vlab"><label for="vTitle">Title</label><button class="mic" type="button" id="micTitle" data-for="vTitle" hidden><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Speak</span></button></div>
     <input id="vTitle" type="text" maxlength="100" placeholder="e.g. Unit 3 compressor nameplate" autocomplete="off" enterkeyhint="next">
-    <label for="vComment">Comment</label>
+    <div class="vlab"><label for="vComment">Comment</label><button class="mic" type="button" id="micComment" data-for="vComment" hidden><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Speak</span></button></div>
     <textarea id="vComment" maxlength="500" placeholder="e.g. Serial 4471-A, corrosion on left mount"></textarea>
     <div class="vfoot">
       <small id="vNote">Printed on a white strip under the photo.</small>
+      <p class="vmsg" id="micMsg" aria-live="polite"></p>
       <button class="vbtn primary" id="vClose" type="button">Done</button>
     </div>
   </div>
@@ -589,13 +599,57 @@ details.more[open] summary::after{content:"–"}
   $("vTitle").addEventListener("input", onEdit);
   $("vComment").addEventListener("input", onEdit);
   $("vTitle").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("vComment").focus(); } });
+  // Dictation: Safari's built-in speech recognition. Hidden where the browser lacks it.
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, recBtn = null;
+  const micBtns = [$("micTitle"), $("micComment")];
+  function micMsg(t){ $("micMsg").textContent = t || ""; }
+  function stopMic(){ if (rec) { try { rec.stop(); } catch (e) {} } }
+  function resetMicUI(){ micBtns.forEach(b => { b.classList.remove("on"); b.querySelector("span").textContent = "Speak"; b.setAttribute("aria-label", b.id === "micTitle" ? "Speak the title" : "Speak the comment"); }); }
+  if (SR) {
+    micBtns.forEach(b => { b.hidden = false; });
+    resetMicUI();
+    micBtns.forEach(b => b.addEventListener("click", () => {
+      const wasThis = recBtn === b;
+      if (rec) { stopMic(); if (wasThis) return; }
+      const field = $(b.dataset.for);
+      const base = field.value.replace(/\s+$/, "");
+      let finals = "";
+      const r = new SR();
+      r.lang = navigator.language || "en-US";
+      r.interimResults = true; r.continuous = true;
+      r.onresult = e => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) finals += t; else interim += t;
+        }
+        let said = (finals + interim).trim();
+        if (said && !base) said = said.charAt(0).toUpperCase() + said.slice(1);
+        field.value = (base && said ? base + " " : base) + said;
+        if (field.maxLength > 0 && field.value.length > field.maxLength) field.value = field.value.slice(0, field.maxLength);
+        onEdit();
+      };
+      r.onerror = e => {
+        if (e.error === "not-allowed" || e.error === "service-not-allowed") micMsg("The microphone is blocked. Allow it in Settings > Apps > Safari > Microphone, or tap the mic key on the keyboard instead.");
+        else if (e.error === "no-speech" || e.error === "aborted") micMsg("");
+        else micMsg("Couldn't hear that. Tap Speak and try again, or use the mic key on the keyboard.");
+      };
+      r.onend = () => { if (rec === r) { rec = null; recBtn = null; resetMicUI(); } };
+      try { r.start(); } catch (err) { micMsg("Couldn't start the microphone. Use the mic key on the keyboard instead."); return; }
+      rec = r; recBtn = b; micMsg("");
+      b.classList.add("on"); b.querySelector("span").textContent = "Stop"; b.setAttribute("aria-label", "Stop listening");
+    }));
+  }
+
   function step(d){
     const pos = results.indexOf(viewing) + d;
-    if (pos >= 0 && pos < results.length) showInViewer(results[pos]);
+    if (pos >= 0 && pos < results.length) { stopMic(); micMsg(""); showInViewer(results[pos]); }
   }
   $("vPrev").addEventListener("click", () => step(-1));
   $("vNext").addEventListener("click", () => step(1));
   async function closeViewer(){
+    stopMic(); micMsg("");
     $("viewer").hidden = true; viewing = null;
     const todo = results.filter(r => dirty.has(r.idx));
     if (todo.length) await rebuild(todo); else render();
